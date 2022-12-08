@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: library-db-app
+  labels:
+    app: library-db-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: library-db-app
+  template:
+    metadata:
+      labels:
+        app: library-db-app
+    spec:
+      volumes:
+        - name: config-pv-volume
+          persistentVolumeClaim:
+            claimName: config-pv-claim
+        - name: db-schema-volume
+          configMap:
+            name: db-schema-init
+        - name: db-config-volume
+          configMap:
+            name: db-lowercase-config
+      containers:
+      - name: library-db-image
+        image: mariadb
+        args: ["--lower_case_table_names=1"]
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 3306
+          protocol: TCP
+        env:
+        - name: MARIADB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mariadb-secrets
+              key: MARIADB_PASSWORD
+        - name: MARIADB_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mariadb-secrets
+              key: MARIADB_ROOT_PASSWORD
+        volumeMounts:
+        - name: db-schema-volume
+          mountPath: /docker-entrypoint-initdb.d/schema.sql
+          subPath: schema.sql
+        - name: config-pv-volume
+          mountPath: "/var/lib/mysql"
